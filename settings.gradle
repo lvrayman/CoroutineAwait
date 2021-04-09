@@ -1,0 +1,3 @@
+include ':coroutine_await'
+include ':app'
+rootProject.name = "CoroutineAwait"
