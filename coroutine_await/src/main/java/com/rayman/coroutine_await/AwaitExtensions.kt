@@ -2,14 +2,11 @@ package com.rayman.coroutine_await
 
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
-import com.rayman.r_utils.log.RLog
 import kotlinx.coroutines.*
 import java.lang.ref.SoftReference
-import java.util.concurrent.Executors
-import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 /**
  * @author 吕少锐 (lvrayman@gmail.com)
@@ -17,8 +14,8 @@ import kotlin.coroutines.suspendCoroutine
  */
 suspend fun <T> LiveData<T?>.awaitTimeout(
     lifecycleOwner: LifecycleOwner,
-    timeout: Long = 0,
-    predicate: (T?) -> Boolean) = withTimeout(timeMillis = timeout) {
+    timeout: Long,
+    predicate: (T?) -> Boolean) = withTimeout(timeout) {
     await(lifecycleOwner, 0, predicate)
 }
 
@@ -29,7 +26,7 @@ suspend fun <T> LiveData<T?>.await(
     var observerRef: SoftReference<Observer<Any?>>? = null
     var timeoutJob: Job? = null
     if (timeout > 0) {
-        timeoutJob = InnerScope.instance.launch(Dispatchers.Main) {
+        timeoutJob = MainScope().launch {
             delay(timeout)
             observerRef?.get()?.let { observer ->
                 removeObserver(observer)
@@ -53,11 +50,17 @@ suspend fun <T> LiveData<T?>.await(
     observerRef = SoftReference(observer)
     observe(lifecycleOwner, observer)
     cont.invokeOnCancellation {
-        RLog.info("LiveData/await/cancel")
         if (timeoutJob?.isActive == true) timeoutJob.cancel()
-        InnerScope.instance.launch(Dispatchers.Main) {
+        MainScope().launch {
             removeObserver(observer)
         }
     }
 }
 
+fun <T> MutableLiveData<T?>.update(invocationHandler: (T?) -> Unit) {
+    val newValue = value
+    invocationHandler(newValue)
+    MainScope().launch {
+        value = newValue
+    }
+}
