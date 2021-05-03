@@ -11,25 +11,25 @@ import kotlin.properties.Delegates
  * @version 4/25/21
  */
 class AWaiter<T>(_target: T) {
-    var target by Delegates.observable(_target, { property, oldValue, newValue ->
+    var value by Delegates.observable(_target, { property, oldValue, newValue ->
         notifyAllObserver()
     })
 
     private val observers = ConcurrentHashMap<String, Observer<T>>()
 
     fun update(newValue: T) {
-        target = newValue
+        value = newValue
     }
 
     fun update(invocation: (T) -> Unit) {
-        invocation(target)
+        invocation(value)
         notifyAllObserver()
     }
 
     @Synchronized
     private fun notifyAllObserver() {
         observers.values.forEach {
-            it.onChanged(target)
+            it.onChanged(value)
         }
     }
 
@@ -50,7 +50,7 @@ class AWaiter<T>(_target: T) {
     suspend fun await(
         timeout: Long = 0,
         predicate: (T) -> Boolean) = suspendCancellableCoroutine<Boolean> { cont ->
-        if (predicate(target)) {
+        if (predicate(value)) {
             cont.resume(true)
         }
         var timeoutJob: Job? = null

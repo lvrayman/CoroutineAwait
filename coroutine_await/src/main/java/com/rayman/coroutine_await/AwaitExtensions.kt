@@ -23,6 +23,9 @@ suspend fun <T> LiveData<T?>.await(
     lifecycleOwner: LifecycleOwner,
     timeout: Long = 0,
     predicate: (T?) -> Boolean) = suspendCancellableCoroutine<Boolean> { cont ->
+    if (predicate(value)) {
+        cont.resume(true)
+    }
     var observerRef: SoftReference<Observer<Any?>>? = null
     var timeoutJob: Job? = null
     if (timeout > 0) {
@@ -57,10 +60,8 @@ suspend fun <T> LiveData<T?>.await(
     }
 }
 
-fun <T> MutableLiveData<T?>.update(invocationHandler: (T?) -> Unit) {
+fun <T> MutableLiveData<T>.update(invocationHandler: (T?) -> Unit) {
     val newValue = value
     invocationHandler(newValue)
-    MainScope().launch {
-        value = newValue
-    }
+    postValue(newValue)
 }
